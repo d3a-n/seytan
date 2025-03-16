@@ -1,16 +1,10 @@
-# Seytan256 Hash: Mathematical Foundation and Technical Documentation
-
-This document provides comprehensive technical documentation for the Seytan256 hash function:
-
-1. **Detailed Mathematical Explanation**
-2. **Rationale Behind Constant Choices**
-3. **In-Depth C Implementation Overview**
+# seytan256 Hash: Mathematical and Technical Documentation
 
 ---
 
 ## 1. Mathematical Explanation
 
-The Seytan256 hash function \( H(S) \) computes a unique 256-bit hash for an input string \( S \) composed of characters \( s_0, s_1, \dots, s_{n-1} \), following the formula:
+The seytan256 hash function \( H(S) \) computes a unique 256-bit hash for an input string \( S \) composed of characters \( s_0, s_1, \dots, s_{n-1} \), following the formula:
 
 ![formula](formula.png)
 
@@ -145,10 +139,3 @@ Execute the binary to hash an input string:
 The result will be a 64-digit hexadecimal hash.
 
 ---
-
-## Conclusion
-
-The Seytan256 hash function effectively demonstrates core cryptographic principles and the practical management of 256-bit arithmetic in C. It serves as an educational tool, highlighting how fundamental mathematical concepts are implemented in practical hashing algorithms.
-
-For cryptographic security and real-world applications, always use standard, peer-reviewed cryptographic hash functions.
-
