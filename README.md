@@ -1,121 +1,206 @@
-# Seytan128 Hash Function - Internal Technical Documentation
+```markdown
+# Seytan256 Hash: Mathematical Description and Technical Explanation
 
-## Overview
+This document provides:
 
-Seytan128 is a 128-bit hash function based on polynomial accumulation and multiplication by a constant derived from the golden ratio. This document explains the mathematical principles, security properties, and implementation details for internal reference.
+1. A **mathematical overview** of the 256-bit hash function.  
+2. A **rationale** (“proof sketch”) for why these parameters are chosen.  
+3. A **detailed look** at the C implementation, focusing on **how** it works.
 
-## Mathematical Foundation
+---
 
-### String-to-Integer Conversion
+## 1. Mathematical Function
 
-The function converts an input string into a 128-bit number using base-31 polynomial accumulation:
+We define a **256-bit** hash function \( H(S) \) for a string \( S \). Let \( S \) have characters \( s_0, s_1, \dots, s_{n-1} \). Then:
 
-```
-x = s[0]*31^(n-1) + s[1]*31^(n-2) + ... + s[n-1]*31^0
-```
-
-Where:
-- `s[i]` is the ASCII value of the i-th character
-- `n` is the length of the string
-
-This is equivalent to Horner's method:
-```
-x = 0
-for each character c in string:
-    x = x*31 + ASCII(c)
-```
-
-### Hash Computation
-
-The 128-bit hash is calculated as:
-```
-H(x) = (x * K) mod 2^128
-```
+\[
+\displaystyle
+H(S) \;=\; \Bigl(\sum_{i=0}^{n-1} \bigl(\text{val}(s_i)\times(i+1)\times K \;\oplus\; R\bigr)\Bigr)\;\bmod\; P
+\]
 
 Where:
-- `x` is the 128-bit integer from the polynomial accumulation
-- `K` is the constant (golden ratio based) 0x9e3779b97f4a7c159e3779b97f4a7c15
-- Modulo 2^128 happens naturally due to integer overflow
+1. \(\text{val}(s_i)\) is the ASCII value of the character \( s_i \).  
+2. \( (i+1) \) ensures positions affect the result differently (simple order dependence).  
+3. \( K \) is a 256-bit **“golden-ratio-like”** constant used to mix bits.  
+4. \( R \) is another 256-bit constant, used to **XOR** every term for extra diffusion.  
+5. \( P \) is a **large 256-bit prime**. We use the well-known **secp256k1** prime:
+   \[
+   P = 2^{256} - 2^{32} - 977.
+   \]
 
-## Mathematical Properties
+### 1.1 Constants
 
-1. **Linearity**: The hash function is linear, meaning:
-   ```
-   H(a + b) = H(a) + H(b) mod 2^128
-   ```
+- **\(K\)** (256-bit), repeated “golden ratio”:
+  ```
+  0x9e3779b97f4a7c159e3779b97f4a7c159e3779b97f4a7c159e3779b97f4a7c15
+  ```
+- **\(R\)** (256-bit), repeated “random-ish” constant:
+  ```
+  0xf39cc0605cedc835f39cc0605cedc835f39cc0605cedc835f39cc0605cedc835
+  ```
+- **\(P\)** (256-bit prime):
+  ```
+  0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
+  ```
 
-2. **Multiplicative Relationship**: For any input `x` and constant `c`:
-   ```
-   H(c*x) = c*H(x) mod 2^128
-   ```
+Each of these fits in **256 bits**. We store them as four 64-bit words in the source code.
 
-3. **Collision Structure**: Inputs that differ by multiples of 2^128/K will collide:
-   ```
-   If (x1 - x2) * K ≡ 0 (mod 2^128), then H(x1) = H(x2)
-   ```
+---
 
-4. **Weak Avalanche**: Small input changes typically affect only a portion of output bits, with predictable propagation patterns.
+## 2. Why These Choices? (Proof Sketch / Rationale)
 
-## Cryptographic Security Analysis
+While not a formal cryptographic proof, the selection of \( K \), \( R \), and \( P \) is guided by **well-known principles**:
 
-### Known Weaknesses
+1. **\(K\)**: The 64-bit constant `0x9e3779b97f4a7c15` is widely used for bit-mixing (often called a “golden ratio” constant). Extending it by concatenation to 256 bits produces a uniform, high-entropy constant for multiplication.  
+2. **\(R\)**: A second constant ensures an **XOR scramble** after multiplication by \( K \). This injects an extra layer of non-linearity.  
+3. **\(P\)**: By taking the result \(\bmod\; P\) with a **large prime** near \(2^{256}\), we avoid the biases that come from working in a power-of-two modulus. Using the **Bitcoin secp256k1** prime is a standard practice in elliptic curve cryptography, known to be robust and free of small prime factors.  
 
-1. **Reversibility**: The function is invertible when K has a multiplicative inverse mod 2^128.
-   - Given H(x) and K, computing x = H(x) * K^(-1) mod 2^128 is possible.
+Collectively, these steps help **disperse** input bits and **reduce collisions**. The operations (\( \times \), \( \oplus \), \(\bmod P\)) cover linear and non-linear transformations that are common in hash functions.
 
-2. **Collision Finding**: Collisions can be found by solving:
-   ```
-   (x1 - x2) * K ≡ 0 (mod 2^128)
-   ```
-   This is equivalent to finding multiples of 2^128/gcd(K, 2^128).
+> **Note**: For a production-grade cryptographic hash, a **fully vetted** design (e.g., SHA-256, SHA-3) is recommended. The approach here is mainly illustrative.
 
-3. **Poor Diffusion**: Bit changes in input don't propagate well across all output bits.
+---
 
-4. **Extension Vulnerability**: Length extensions are trivial due to the polynomial structure.
+## 3. Implementation Details
 
-### Expected Security Metrics
+Below is the **C implementation** of this 256-bit hash. It:
 
-- **Collision Resistance**: ~2^64 operations (instead of 2^64 for ideal 128-bit hash)
-- **Preimage Resistance**: Not assured due to linearity
-- **Avalanche Effect**: 40-50% is expected (rather than ~50% for ideal hashes)
+- Maintains 256-bit values as **four 64-bit words** in an array.  
+- Implements **basic big-integer** addition, subtraction, multiplication, and modulo operations.  
+- Uses the described formula directly on the characters of the input string.
 
-## Enhanced Version Improvements
+### 3.1 Core Big-Integer Operations
 
-The enhanced version adds:
+**1. Addition (add_256)**  
+Adds two 256-bit numbers (\( a, b \)) with carry handling:
+```c
+static void add_256(uint64_t r[4], const uint64_t a[4]) {
+  __uint128_t c = 0; 
+  for(int i=0; i<4; i++) {
+    __uint128_t s = ( (__uint128_t)r[i] + a[i] + c );
+    r[i] = (uint64_t)s;
+    c = s >> 64;
+  }
+}
+```
 
-1. **Non-Linearity**: Through bit rotations and XOR operations
-2. **Multiple Rounds**: Increasing diffusion and making analysis harder
-3. **Mixing High/Low Bits**: Improving avalanche effects across the full 128 bits
-4. **Length Incorporation**: Preventing length extension attacks
+**2. Compare (cmp_256)**  
+Returns -1, 0, or 1 depending on whether \( a < b \), \( a = b \), or \( a > b \):
+```c
+static int cmp_256(const uint64_t a[4], const uint64_t b[4]) {
+  for(int i=3; i>=0; i--) {
+    if(a[i] < b[i]) return -1;
+    if(a[i] > b[i]) return 1;
+  }
+  return 0;
+}
+```
 
-## Performance Considerations
+**3. Subtraction (sub_256)**  
+Subtracts \((r - m)\) with borrow:
+```c
+static void sub_256(uint64_t r[4], const uint64_t m[4]) {
+  __uint128_t c = 0;
+  for(int i=0; i<4; i++) {
+    __uint128_t diff = ( (__uint128_t)r[i] - m[i] - c );
+    r[i] = (uint64_t)diff;
+    c = (diff >> 64) & 1;
+  }
+}
+```
 
-- Original version is very fast (one multiplication operation)
-- Enhanced version is slower but provides significantly better security properties
-- Both versions are faster than SHA-2/SHA-3 but with reduced security guarantees
+**4. Modulus (mod_256)**  
+Reduces \( x \mod P \) by repeatedly subtracting \( P \) if \( x \ge P \):
+```c
+static void mod_256(uint64_t x[4]) {
+  while(cmp_256(x, P) >= 0) {
+    sub_256(x, P);
+  }
+}
+```
 
-## Testing Methodology
+**5. Multiply a 256-bit by 64-bit (mul_256_64)**  
+```c
+static void mul_256_64(uint64_t r[4], const uint64_t a[4], uint64_t b) {
+  __uint128_t c = 0;
+  for(int i=0; i<4; i++) {
+    __uint128_t m = ( (__uint128_t)a[i] * b ) + c;
+    r[i] = (uint64_t)m;
+    c = m >> 64;
+  }
+}
+```
 
-1. **Avalanche Testing**: Measures bit change propagation (ideally ~50%)
-2. **Collision Testing**: Random input pairs looking for matching outputs
-3. **Dieharder**: Statistical randomness testing suite for output distributions
+**6. Multiply a 256-bit by 256-bit (mul_256_256)**  
+Uses repeated shifts and adds:
+```c
+static void mul_256_256(uint64_t r[4], const uint64_t a[4], const uint64_t b[4]) {
+  uint64_t tmp[4] = {0}, res[4] = {0};
+  for(int i=0; i<4; i++) {
+    memset(tmp, 0, sizeof(tmp));
+    mul_256_64(tmp, a, b[i]);
+    for(int j=0; j<i; j++) {
+      // shift left by 64 bits * i
+      for(int k=3; k>0; k--) tmp[k] = tmp[k-1];
+      tmp[0] = 0;
+    }
+    add_256(res, tmp);
+  }
+  memcpy(r, res, sizeof(res));
+}
+```
 
-## Not For Production Use
+**7. XOR (xor_256)**  
+Bitwise XOR of two 256-bit arrays:
+```c
+static void xor_256(uint64_t r[4], const uint64_t x[4]) {
+  for(int i=0; i<4; i++) {
+    r[i] ^= x[i];
+  }
+}
+```
 
-This hash function is not suitable for:
-- Password hashing
-- Digital signatures
-- Message authentication codes
-- Any security-critical applications
+**8. Hex Printing (print_hex_256)**  
+Prints the 256-bit result in big-endian hex (most significant word first):
+```c
+static void print_hex_256(const uint64_t x[4]) {
+  for(int i=3; i>=0; i--) printf("%016lx", x[i]);
+  printf("\n");
+}
+```
 
-## Mathematical Proof of Weakness
+### 3.2 Main Hashing Procedure
 
-Let K be our constant. We can find x₁≠x₂ such that H(x₁)=H(x₂) by solving:
+1. **Initialize** `sum` to 0 (a 256-bit number).
+2. **For each character** `s[i]`, do:
+   - Compute \(\text{val}(s_i)\times (i+1)\).  
+   - Multiply by \(K\) (256-bit multiplication by a 64-bit intermediate).  
+   - **XOR** the result with \(R\).  
+   - **Add** it to `sum`.  
+   - **mod P** so `sum` remains within the prime field.  
+3. At the end, print `sum` in 256-bit hex.
 
-x₁·K ≡ x₂·K (mod 2^128)
+---
 
-This means (x₁-x₂)·K ≡ 0 (mod 2^128)
+### 4 Compilation & Usage
 
-Since K is odd (due to the golden ratio derivation), gcd(K,2^128)=1, meaning we can find values of x₁,x₂ that differ by 2^128/gcd(K,2^128) = 2^128.
+```bash
+# Compile:
+cc seytan256.c -o seytan256
 
-This implies that any inputs differing by exact multiples of 2^128/K will produce identical hash values, providing a direct avenue for generating collisions.
+# Run:
+./seytan256 hello
+```
+
+Output is a **64-hex-digit** number representing the hash.
+
+---
+
+## 5. Conclusion
+
+- **Mathematical Approach**: Combines integer multiplication, XOR, and a **prime modulus** to produce a 256-bit result.  
+- **Implementation**: Demonstrates big-integer arithmetic in C (managing 256-bit operations via 64-bit arrays).  
+- **Security Note**: While it uses patterns from cryptographic primitives, this code **is not** a peer-reviewed cryptographic hash. For real security, use well-established functions (SHA-2, SHA-3, etc.).
+
+```markdown
+```
