@@ -51,13 +51,13 @@ These constants were specifically selected based on well-established cryptograph
 
 These combined operations ensure an effective and statistically robust hash function suitable for educational and illustrative purposes.
 
-> **Security Disclaimer**: Although mathematically sound and informative, Seytan256 is intended solely for educational purposes. Real-world cryptographic applications must use peer-reviewed algorithms like SHA-256 or SHA-3.
+> **Security Disclaimer**: Although mathematically sound and informative, seytan256 is intended solely for educational purposes. Real-world cryptographic applications must use peer-reviewed algorithms like SHA-256 or SHA-3.
 
 ---
 
 ## 3. In-Depth Implementation Details (C)
 
-The Seytan256 algorithm is implemented in C and carefully manages large integers using arrays of four 64-bit words to represent 256-bit numbers. It performs fundamental big-integer arithmetic operations to handle the large numbers involved in the hashing computation.
+The seytan256 algorithm is implemented in C and carefully manages large integers using arrays of four 64-bit words to represent 256-bit numbers. It performs fundamental big-integer arithmetic operations to handle the large numbers involved in the hashing computation.
 
 ### Core Big-Integer Functions
 
