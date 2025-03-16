@@ -3,6 +3,9 @@
 We define a **256-bit** hash function `H(S)` for a string `S`. Let `S` have characters `s_0, s_1, …, s_(n-1)`. Then:
 
 ```
+![formula](formula.png)
+
+
 H(S) = (sum_{i=0}^{n-1} ((val(s_i) * (i+1) * K) XOR R)) mod P
 ```
 
