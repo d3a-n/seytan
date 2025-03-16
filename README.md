@@ -1,13 +1,3 @@
-# Seytan256 Hash: Mathematical Description and Technical Explanation
-
-This document provides:
-
-1. A **mathematical overview** of the 256-bit hash function.
-2. A **rationale** (“proof sketch”) for why these parameters are chosen.
-3. A **detailed look** at the C implementation, focusing on **how** it works.
-
----
-
 ## Mathematical Function
 
 We define a **256-bit** hash function \( H(S) \) for a string \( S \). Let \( S \) have characters \( s_0, s_1, \dots, s_{n-1} \). Then:
