@@ -1,4 +1,4 @@
-```markdown
+```md
 # Seytan256 Hash: Mathematical Description and Technical Explanation
 
 This document provides:
@@ -202,5 +202,5 @@ Output is a **64-hex-digit** number representing the hash.
 - **Implementation**: Demonstrates big-integer arithmetic in C (managing 256-bit operations via 64-bit arrays).  
 - **Security Note**: While it uses patterns from cryptographic primitives, this code **is not** a peer-reviewed cryptographic hash. For real security, use well-established functions (SHA-2, SHA-3, etc.).
 
-```markdown
+```md
 ```
